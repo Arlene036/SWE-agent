@@ -172,6 +172,16 @@ class BaseModel:
 
 class OpenAIModel(BaseModel):
     MODELS = {
+        "xDAN-L2-Agent-v8-e1": {
+            "max_context": 16_385,
+            "cost_per_input_token": 5e-07,
+            "cost_per_output_token": 1.5e-06,
+        },
+        "xDAN-L3-Agent-v8-RL-0401-e05": {
+            "max_context": 8_192,
+            "cost_per_input_token": 5e-07,
+            "cost_per_output_token": 1.5e-06,
+        },
         "gpt-3.5-turbo-0125": {
             "max_context": 16_385,
             "cost_per_input_token": 5e-07,
@@ -210,6 +220,8 @@ class OpenAIModel(BaseModel):
     }
 
     SHORTCUTS = {
+        "xdan2": "xDAN-L2-Agent-v8-e1",
+        "xdan3": "xDAN-L3-Agent-v8-RL-0401-e05",
         "gpt3": "gpt-3.5-turbo-1106",
         "gpt3-legacy": "gpt-3.5-turbo-16k-0613",
         "gpt4": "gpt-4-1106-preview",
@@ -703,7 +715,7 @@ def get_model(args: ModelArguments, commands: Optional[list[Command]] = None):
         return HumanThoughtModel(args, commands)
     if args.model_name == "replay":
         return ReplayModel(args, commands)
-    elif args.model_name.startswith("gpt") or args.model_name.startswith("ft:gpt") or args.model_name.startswith("azure:gpt"):
+    elif args.model_name.startswith("gpt") or args.model_name.startswith("xdan") or args.model_name.startswith("ft:gpt") or args.model_name.startswith("azure:gpt"):
         return OpenAIModel(args, commands)
     elif args.model_name.startswith("claude"):
         return AnthropicModel(args, commands)
