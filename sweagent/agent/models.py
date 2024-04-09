@@ -172,16 +172,6 @@ class BaseModel:
 
 class OpenAIModel(BaseModel):
     MODELS = {
-        "xDAN-L2-Agent-v8-e1": {
-            "max_context": 16_385,
-            "cost_per_input_token": 5e-07,
-            "cost_per_output_token": 1.5e-06,
-        },
-        "xDAN-L3-Agent-v8-RL-0401-e05": {
-            "max_context": 8_192,
-            "cost_per_input_token": 5e-07,
-            "cost_per_output_token": 1.5e-06,
-        },
         "gpt-3.5-turbo-0125": {
             "max_context": 16_385,
             "cost_per_input_token": 5e-07,
@@ -220,8 +210,6 @@ class OpenAIModel(BaseModel):
     }
 
     SHORTCUTS = {
-        "xdan2": "xDAN-L2-Agent-v8-e1",
-        "xdan3": "xDAN-L3-Agent-v8-RL-0401-e05",
         "gpt3": "gpt-3.5-turbo-1106",
         "gpt3-legacy": "gpt-3.5-turbo-16k-0613",
         "gpt4": "gpt-4-1106-preview",
@@ -283,6 +271,78 @@ class OpenAIModel(BaseModel):
         output_tokens = response.usage.completion_tokens
         self.update_stats(input_tokens, output_tokens)
         return response.choices[0].message.content
+
+
+class XdanModel(BaseModel):
+    MODELS = {
+        "xDAN-L2-Agent-v8-e1": {
+            "max_context": 16_385,
+            "cost_per_input_token": 5e-07,
+            "cost_per_output_token": 1.5e-06,
+        },
+        "xDAN-L3-Agent-v8-RL-0401-e05": {
+            "max_context": 8_192,
+            "cost_per_input_token": 5e-07,
+            "cost_per_output_token": 1.5e-06,
+        }
+    }
+
+    SHORTCUTS = {
+        "xdan2": "xDAN-L2-Agent-v8-e1",
+        "xdan3": "xDAN-L3-Agent-v8-RL-0401-e05",
+    }
+
+    def __init__(self, args: ModelArguments, commands: list[Command]):
+        super().__init__(args, commands)
+
+        # Set OpenAI key
+        cfg = config.Config(os.path.join(os.getcwd(), "keys.cfg"))
+
+        api_base_url: Optional[str] = cfg.get("OPENAI_API_BASE_URL", None)
+        self.client = OpenAI(api_key=cfg["OPENAI_API_KEY"], base_url=api_base_url)
+
+    def history_to_messages(
+        self, history: list[dict[str, str]], is_demonstration: bool = False
+    ) -> list[dict[str, str]]:
+        """
+        Create `messages` by filtering out all keys except for role/content per `history` turn
+        """
+        # Remove system messages if it is a demonstration
+        if is_demonstration:
+            history = [entry for entry in history if entry["role"] != "system"]
+            return '\n'.join([entry["content"] for entry in history])
+        # Return history components with just role, content fields
+        return [
+            {k: v for k, v in entry.items() if k in ["role", "content"]}
+            for entry in history
+        ]
+
+    @retry(
+        wait=wait_random_exponential(min=1, max=15),
+        reraise=True,
+        stop=stop_after_attempt(3),
+        retry=retry_if_not_exception_type((CostLimitExceededError, RuntimeError)),
+    )
+    def query(self, history: list[dict[str, str]]) -> str:
+        """
+        Query the OpenAI API with the given `history` and return the response.
+        """
+        try:
+            # Perform OpenAI API call
+            response = self.client.chat.completions.create(
+                messages=self.history_to_messages(history),
+                model=self.api_model,
+                temperature=self.args.temperature,
+                top_p=self.args.top_p,
+            )
+        except BadRequestError as e:
+            raise CostLimitExceededError(f"Context window ({self.model_metadata['max_context']} tokens) exceeded")
+        # Calculate + update costs, return response
+        input_tokens = response.usage.prompt_tokens
+        output_tokens = response.usage.completion_tokens
+        self.update_stats(input_tokens, output_tokens)
+        return response.choices[0].message.content
+
 
 class AnthropicModel(BaseModel):
     MODELS = {
@@ -715,8 +775,10 @@ def get_model(args: ModelArguments, commands: Optional[list[Command]] = None):
         return HumanThoughtModel(args, commands)
     if args.model_name == "replay":
         return ReplayModel(args, commands)
-    elif args.model_name.startswith("gpt") or args.model_name.startswith("xdan") or args.model_name.startswith("ft:gpt") or args.model_name.startswith("azure:gpt"):
+    elif args.model_name.startswith("gpt") or args.model_name.startswith("ft:gpt") or args.model_name.startswith("azure:gpt"):
         return OpenAIModel(args, commands)
+    elif args.model_name.startswith("xdan"):
+        return XdanModel(args, commands)
     elif args.model_name.startswith("claude"):
         return AnthropicModel(args, commands)
     elif args.model_name.startswith("ollama"):
