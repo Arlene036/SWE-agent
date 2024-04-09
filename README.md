@@ -186,6 +186,8 @@ Replace `<predictions_path>` with the path to the model's predictions, which sho
 2. 修改keys.cfg里面的OPENAI_API_BASE_URL（需要对应模型的ip）
 3. 修改test.sh里面的--model_name后面的名字
 
+结果在trajectories文件夹下面
+
 ## 💫 Contributions <a name="contributions"></a>
 - If you'd like to ask questions, learn about upcoming features, and participate in future development, join our [Discord community](https://discord.gg/AVEFbBn2rH)!
 - If you'd like to contribute to the codebase, we welcome [issues](https://github.com/princeton-nlp/SWE-agent/issues) and [pull requests](https://github.com/princeton-nlp/SWE-agent/pulls)!
