@@ -181,10 +181,10 @@ Replace `<predictions_path>` with the path to the model's predictions, which sho
 
 
 ## How to Adapt to XDan?
-修改三个文件：
-1. sweagent/models.py里面的XdanModel类下的MODELS和SHORTCUTS
-2. 修改keys.cfg里面的OPENAI_API_BASE_URL（需要对应模型的ip）
-3. 修改test.sh里面的--model_name后面的名字
+given model_name & ip，只需要修改三个文件：
+step1: sweagent/models.py里面的XdanModel类下的MODELS和SHORTCUTS
+step2: 修改keys.cfg里面的OPENAI_API_BASE_URL（对应step3填入的model的ip）
+step3: 修改test.sh里面的--model_name后面的名字 (写step1里面写的SHORTCUTS，比如使用xDAN-L3-Agent-v8-RL-0401-e05的话就输入xdan3）
 
 结果在trajectories文件夹下面
 
